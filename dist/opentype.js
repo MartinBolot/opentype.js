@@ -690,18 +690,12 @@ function Font(options) {
         this.unitsPerEm = options.unitsPerEm || 1000;
         this.ascender = options.ascender;
         this.descender = options.descender;
-        this.createdTimestamp = options.createdTimestamp;
-        this.tables = { os2: {
-            usWeightClass: options.weightClass || this.usWeightClasses.MEDIUM,
-            usWidthClass: options.widthClass || this.usWidthClasses.MEDIUM,
-            fsSelection: options.fsSelection || this.fsSelectionValues.REGULAR
-        } };
     }
 
     this.supported = true; // Deprecated: parseBuffer will throw an error if font is not supported.
     this.glyphs = new glyphset.GlyphSet(this, options.glyphs || []);
     this.encoding = new encoding.DefaultEncoding(this);
-    this.tables = this.tables || {};
+    this.tables = {};
 }
 
 // Check if the font has a glyph for the given character.
@@ -981,46 +975,9 @@ Font.prototype.download = function() {
     }
 };
 
-Font.prototype.fsSelectionValues = {
-    ITALIC:              0x001, //1
-    UNDERSCORE:          0x002, //2
-    NEGATIVE:            0x004, //4
-    OUTLINED:            0x008, //8
-    STRIKEOUT:           0x010, //16
-    BOLD:                0x020, //32
-    REGULAR:             0x040, //64
-    USER_TYPO_METRICS:   0x080, //128
-    WWS:                 0x100, //256
-    OBLIQUE:             0x200  //512
-};
-
-Font.prototype.usWidthClasses = {
-    ULTRA_CONDENSED: 1,
-    EXTRA_CONDENSED: 2,
-    CONDENSED: 3,
-    SEMI_CONDENSED: 4,
-    MEDIUM: 5,
-    SEMI_EXPANDED: 6,
-    EXPANDED: 7,
-    EXTRA_EXPANDED: 8,
-    ULTRA_EXPANDED: 9
-};
-
-Font.prototype.usWeightClasses = {
-    THIN: 100,
-    EXTRA_LIGHT: 200,
-    LIGHT: 300,
-    NORMAL: 400,
-    MEDIUM: 500,
-    SEMI_BOLD: 600,
-    BOLD: 700,
-    EXTRA_BOLD: 800,
-    BLACK:    900
-};
-
 exports.Font = Font;
 
-},{"./encoding":4,"./glyphset":7,"./path":10,"./tables/sfnt":28,"./util":30,"fs":undefined}],6:[function(require,module,exports){
+},{"./encoding":4,"./glyphset":7,"./path":10,"./tables/sfnt":27,"./util":29,"fs":undefined}],6:[function(require,module,exports){
 // The Glyph object
 
 'use strict';
@@ -1112,7 +1069,7 @@ Glyph.prototype.addUnicode = function(unicode) {
 Glyph.prototype.getPath = function(x, y, fontSize, options) {
     x = x !== undefined ? x : 0;
     y = y !== undefined ? y : 0;
-    options = options !== undefined ? options : {xScale: 1.0, yScale: 1.0};
+    options = options !== undefined ? options : {xScale: 1.0, yScale:1.0};
     fontSize = fontSize !== undefined ? fontSize : 72;
     var scale = 1 / this.path.unitsPerEm * fontSize;
     var xScale = options.xScale * scale;
@@ -1423,7 +1380,6 @@ var cff = require('./tables/cff');
 var fvar = require('./tables/fvar');
 var glyf = require('./tables/glyf');
 var gpos = require('./tables/gpos');
-var gsub = require('./tables/gsub');
 var head = require('./tables/head');
 var hhea = require('./tables/hhea');
 var hmtx = require('./tables/hmtx');
@@ -1566,7 +1522,6 @@ function parseBuffer(buffer) {
     var fvarTableEntry;
     var glyfTableEntry;
     var gposTableEntry;
-    var gsubTableEntry;
     var hmtxTableEntry;
     var kernTableEntry;
     var locaTableEntry;
@@ -1636,9 +1591,6 @@ function parseBuffer(buffer) {
             case 'GPOS':
                 gposTableEntry = tableEntry;
                 break;
-            case 'GSUB':
-                gsubTableEntry = tableEntry;
-                break;
         }
     }
 
@@ -1673,10 +1625,6 @@ function parseBuffer(buffer) {
     if (gposTableEntry) {
         var gposTable = uncompressTable(data, gposTableEntry);
         gpos.parse(gposTable.data, gposTable.offset, font);
-    }
-    if (gsubTableEntry) {
-        var gsubTable = uncompressTable(data, gsubTableEntry);
-        font.tables.gsub = gsub.parse(gsubTable.data, gsubTable.offset);
     }
 
     if (fvarTableEntry) {
@@ -1726,12 +1674,10 @@ exports.parse = parseBuffer;
 exports.load = load;
 exports.loadSync = loadSync;
 
-},{"./encoding":4,"./font":5,"./glyph":6,"./parse":9,"./path":10,"./tables/cff":12,"./tables/cmap":13,"./tables/fvar":14,"./tables/glyf":15,"./tables/gpos":16,"./tables/gsub":17,"./tables/head":18,"./tables/hhea":19,"./tables/hmtx":20,"./tables/kern":21,"./tables/loca":22,"./tables/ltag":23,"./tables/maxp":24,"./tables/name":25,"./tables/os2":26,"./tables/post":27,"./util":30,"fs":undefined,"tiny-inflate":1}],9:[function(require,module,exports){
+},{"./encoding":4,"./font":5,"./glyph":6,"./parse":9,"./path":10,"./tables/cff":12,"./tables/cmap":13,"./tables/fvar":14,"./tables/glyf":15,"./tables/gpos":16,"./tables/head":17,"./tables/hhea":18,"./tables/hmtx":19,"./tables/kern":20,"./tables/loca":21,"./tables/ltag":22,"./tables/maxp":23,"./tables/name":24,"./tables/os2":25,"./tables/post":26,"./util":29,"fs":undefined,"tiny-inflate":1}],9:[function(require,module,exports){
 // Parsing utility functions
 
 'use strict';
-
-var check = require('./check');
 
 // Retrieve an unsigned byte from the DataView.
 exports.getByte = function getByte(dataView, offset) {
@@ -1742,11 +1688,11 @@ exports.getCard8 = exports.getByte;
 
 // Retrieve an unsigned 16-bit short from the DataView.
 // The value is stored in big endian.
-function getUShort(dataView, offset) {
+exports.getUShort = function(dataView, offset) {
     return dataView.getUint16(offset, false);
-}
+};
 
-exports.getUShort = exports.getCard16 = getUShort;
+exports.getCard16 = exports.getUShort;
 
 // Retrieve a signed 16-bit short from the DataView.
 // The value is stored in big endian.
@@ -1877,6 +1823,20 @@ Parser.prototype.parseFixed = function() {
     return v;
 };
 
+Parser.prototype.parseOffset16List =
+Parser.prototype.parseUShortList = function(count) {
+    var offsets = new Array(count);
+    var dataView = this.data;
+    var offset = this.offset + this.relativeOffset;
+    for (var i = 0; i < count; i++) {
+        offsets[i] = exports.getUShort(dataView, offset);
+        offset += 2;
+    }
+
+    this.relativeOffset += count * 2;
+    return offsets;
+};
+
 Parser.prototype.parseString = function(length) {
     var dataView = this.data;
     var offset = this.offset + this.relativeOffset;
@@ -1896,22 +1856,24 @@ Parser.prototype.parseTag = function() {
 // LONGDATETIME is a 64-bit integer.
 // JavaScript and unix timestamps traditionally use 32 bits, so we
 // only take the last 32 bits.
-// + Since until 2038 those bits will be filled by zeros we can ignore them.
 Parser.prototype.parseLongDateTime = function() {
     var v = exports.getULong(this.data, this.offset + this.relativeOffset + 4);
-    // Subtract seconds between 01/01/1904 and 01/01/1970
-    // to convert Apple Mac timstamp to Standard Unix timestamp
-    v -= 2082844800;
     this.relativeOffset += 8;
     return v;
 };
 
+Parser.prototype.parseFixed = function() {
+    var v = exports.getULong(this.data, this.offset + this.relativeOffset);
+    this.relativeOffset += 4;
+    return v / 65536;
+};
+
 Parser.prototype.parseVersion = function() {
-    var major = getUShort(this.data, this.offset + this.relativeOffset);
+    var major = exports.getUShort(this.data, this.offset + this.relativeOffset);
 
     // How to interpret the minor version is very vague in the spec. 0x5000 is 5, 0x1000 is 1
     // This returns the correct number if minor = 0xN000 where N is 0-9
-    var minor = getUShort(this.data, this.offset + this.relativeOffset + 2);
+    var minor = exports.getUShort(this.data, this.offset + this.relativeOffset + 2);
     this.relativeOffset += 4;
     return major + minor / 0x1000 / 10;
 };
@@ -1924,260 +1886,9 @@ Parser.prototype.skip = function(type, amount) {
     this.relativeOffset += typeOffsets[type] * amount;
 };
 
-///// Parsing lists and records ///////////////////////////////
-
-// Parse a list of 16 bit integers. The length of the list can be read on the stream
-// or provided as an argument.
-Parser.prototype.parseOffset16List =
-Parser.prototype.parseUShortList = function(count) {
-    if (count === undefined) { count = this.parseUShort(); }
-    var offsets = new Array(count);
-    var dataView = this.data;
-    var offset = this.offset + this.relativeOffset;
-    for (var i = 0; i < count; i++) {
-        offsets[i] = dataView.getUint16(offset);
-        offset += 2;
-    }
-
-    this.relativeOffset += count * 2;
-    return offsets;
-};
-
-/**
- * Parse a list of items.
- * Record count is optional, if omitted it is read from the stream.
- * itemCallback is one of the Parser methods.
- */
-Parser.prototype.parseList = function(count, itemCallback) {
-    if (!itemCallback) {
-        itemCallback = count;
-        count = this.parseUShort();
-    }
-    var list = new Array(count);
-    for (var i = 0; i < count; i++) {
-        list[i] = itemCallback.call(this);
-    }
-    return list;
-};
-
-/**
- * Parse a list of records.
- * Record count is optional, if omitted it is read from the stream.
- * Example of recordDescription: { sequenceIndex: Parser.uShort, lookupListIndex: Parser.uShort }
- */
-Parser.prototype.parseRecordList = function(count, recordDescription) {
-    // If the count argument is absent, read it in the stream.
-    if (!recordDescription) {
-        recordDescription = count;
-        count = this.parseUShort();
-    }
-    var records = new Array(count);
-    var fields = Object.keys(recordDescription);
-    for (var i = 0; i < count; i++) {
-        var rec = {};
-        for (var j = 0; j < fields.length; j++) {
-            var fieldName = fields[j];
-            var fieldType = recordDescription[fieldName];
-            rec[fieldName] = fieldType.call(this);
-        }
-        records[i] = rec;
-    }
-    return records;
-};
-
-// Parse a data structure into an object
-// Example of description: { sequenceIndex: Parser.uShort, lookupListIndex: Parser.uShort }
-Parser.prototype.parseStruct = function(description) {
-    if (typeof description === 'function') {
-        return description.call(this);
-    } else {
-        var fields = Object.keys(description);
-        var struct = {};
-        for (var j = 0; j < fields.length; j++) {
-            var fieldName = fields[j];
-            var fieldType = description[fieldName];
-            struct[fieldName] = fieldType.call(this);
-        }
-        return struct;
-    }
-};
-
-Parser.prototype.parsePointer = function(description) {
-    var structOffset = this.parseOffset16();
-    if (structOffset > 0) {                         // NULL offset => return indefined
-        return new Parser(this.data, this.offset + structOffset).parseStruct(description);
-    }
-};
-
-/**
- * Parse a list of offsets to lists of 16-bit integers,
- * or a list of offsets to lists of offsets to any kind of items.
- * If itemCallback is not provided, a list of list of UShort is assumed.
- * If provided, itemCallback is called on each item and must parse the item.
- * See examples in tables/gsub.js
- */
-Parser.prototype.parseListOfLists = function(itemCallback) {
-    var offsets = this.parseOffset16List();
-    var count = offsets.length;
-    var relativeOffset = this.relativeOffset;
-    var list = new Array(count);
-    for (var i = 0; i < count; i++) {
-        var start = offsets[i];
-        if (start === 0) {                  // NULL offset
-            list[i] = undefined;            // Add i as owned property to list. Convenient with assert.
-            continue;
-        }
-        this.relativeOffset = start;
-        if (itemCallback) {
-            var subOffsets = this.parseOffset16List();
-            var subList = new Array(subOffsets.length);
-            for (var j = 0; j < subOffsets.length; j++) {
-                this.relativeOffset = start + subOffsets[j];
-                subList[j] = itemCallback.call(this);
-            }
-            list[i] = subList;
-        } else {
-            list[i] = this.parseUShortList();
-        }
-    }
-    this.relativeOffset = relativeOffset;
-    return list;
-};
-
-///// Complex tables parsing //////////////////////////////////
-
-// Parse a coverage table in a GSUB, GPOS or GDEF table.
-// https://www.microsoft.com/typography/OTSPEC/chapter2.htm
-// parser.offset must point to the start of the table containing the coverage.
-Parser.prototype.parseCoverage = function() {
-    var startOffset = this.offset + this.relativeOffset;
-    var format = this.parseUShort();
-    var count = this.parseUShort();
-    if (format === 1) {
-        return {
-            format: 1,
-            glyphs: this.parseUShortList(count)
-        };
-    } else if (format === 2) {
-        var ranges = new Array(count);
-        for (var i = 0; i < count; i++) {
-            ranges[i] = {
-                start: this.parseUShort(),
-                end: this.parseUShort(),
-                index: this.parseUShort()
-            };
-        }
-        return {
-            format: 2,
-            ranges: ranges
-        };
-    }
-    check.assert(false, '0x' + startOffset.toString(16) + ': Coverage format must be 1 or 2.');
-};
-
-// Parse a Class Definition Table in a GSUB, GPOS or GDEF table.
-// https://www.microsoft.com/typography/OTSPEC/chapter2.htm
-Parser.prototype.parseClassDef = function() {
-    var startOffset = this.offset + this.relativeOffset;
-    var format = this.parseUShort();
-    if (format === 1) {
-        return {
-            format: 1,
-            startGlyph: this.parseUShort(),
-            classes: this.parseUShortList()
-        };
-    } else if (format === 2) {
-        return {
-            format: 2,
-            ranges: this.parseRecordList({
-                start: Parser.uShort,
-                end: Parser.uShort,
-                classId: Parser.uShort
-            })
-        };
-    }
-    check.assert(false, '0x' + startOffset.toString(16) + ': ClassDef format must be 1 or 2.');
-};
-
-///// Static methods ///////////////////////////////////
-// These convenience methods can be used as callbacks and should be called with "this" context set to a Parser instance.
-
-Parser.list = function(count, itemCallback) {
-    return function() {
-        return this.parseList(count, itemCallback);
-    };
-};
-
-Parser.recordList = function(count, recordDescription) {
-    return function() {
-        return this.parseRecordList(count, recordDescription);
-    };
-};
-
-Parser.pointer = function(description) {
-    return function() {
-        return this.parsePointer(description);
-    };
-};
-
-Parser.tag = Parser.prototype.parseTag;
-Parser.byte = Parser.prototype.parseByte;
-Parser.uShort = Parser.offset16 = Parser.prototype.parseUShort;
-Parser.uShortList = Parser.prototype.parseUShortList;
-Parser.struct = Parser.prototype.parseStruct;
-Parser.coverage = Parser.prototype.parseCoverage;
-Parser.classDef = Parser.prototype.parseClassDef;
-
-///// Script, Feature, Lookup lists ///////////////////////////////////////////////
-// https://www.microsoft.com/typography/OTSPEC/chapter2.htm
-
-var langSysTable = {
-    reserved: Parser.uShort,
-    reqFeatureIndex: Parser.uShort,
-    featureIndexes: Parser.uShortList
-};
-
-Parser.prototype.parseScriptList = function() {
-    return this.parsePointer(Parser.recordList({
-        tag: Parser.tag,
-        script: Parser.pointer({
-            defaultLangSys: Parser.pointer(langSysTable),
-            langSysRecords: Parser.recordList({
-                tag: Parser.tag,
-                langSys: Parser.pointer(langSysTable)
-            })
-        })
-    }));
-};
-
-Parser.prototype.parseFeatureList = function() {
-    return this.parsePointer(Parser.recordList({
-        tag: Parser.tag,
-        feature: Parser.pointer({
-            featureParams: Parser.offset16,
-            lookupListIndexes: Parser.uShortList
-        })
-    }));
-};
-
-Parser.prototype.parseLookupList = function(lookupTableParsers) {
-    return this.parsePointer(Parser.list(Parser.pointer(function() {
-        var lookupType = this.parseUShort();
-        check.argument(1 <= lookupType && lookupType <= 8, 'GSUB lookup type ' + lookupType + ' unknown.');
-        var lookupFlag = this.parseUShort();
-        var useMarkFilteringSet = lookupFlag & 0x10;
-        return {
-            lookupType: lookupType,
-            lookupFlag: lookupFlag,
-            subtables: this.parseList(Parser.pointer(lookupTableParsers[lookupType])),
-            markFilteringSet: useMarkFilteringSet ? this.parseUShort() : undefined
-        };
-    })));
-};
-
 exports.Parser = Parser;
 
-},{"./check":2}],10:[function(require,module,exports){
+},{}],10:[function(require,module,exports){
 // Geometric objects
 
 'use strict';
@@ -2386,7 +2097,7 @@ Table.prototype.sizeOf = function() {
 
 exports.Record = exports.Table = Table;
 
-},{"./types":29}],12:[function(require,module,exports){
+},{"./types":28}],12:[function(require,module,exports){
 // The `CFF` table contains the glyph outlines in PostScript format.
 // https://www.microsoft.com/typography/OTSPEC/cff.htm
 // http://download.microsoft.com/download/8/0/1/801a191c-029d-4af3-9642-555f6fe514ee/cff.pdf
@@ -4371,212 +4082,6 @@ function parseGposTable(data, start, font) {
 exports.parse = parseGposTable;
 
 },{"../check":2,"../parse":9}],17:[function(require,module,exports){
-// The `GSUB` table contains ligatures, among other things.
-// https://www.microsoft.com/typography/OTSPEC/gsub.htm
-
-'use strict';
-
-var check = require('../check');
-var Parser = require('../parse').Parser;
-var subtableParsers = new Array(9);         // subtableParsers[0] is unused
-
-// https://www.microsoft.com/typography/OTSPEC/GSUB.htm#SS
-subtableParsers[1] = function parseLookup1() {
-    var start = this.offset + this.relativeOffset;
-    var substFormat = this.parseUShort();
-    if (substFormat === 1) {
-        return {
-            substFormat: 1,
-            coverage: this.parsePointer(Parser.coverage),
-            deltaGlyphId: this.parseUShort()
-        };
-    } else if (substFormat === 2) {
-        return {
-            substFormat: 2,
-            coverage: this.parsePointer(Parser.coverage),
-            substitute: this.parseOffset16List()
-        };
-    }
-    check.assert(false, '0x' + start.toString(16) + ': lookup type 1 format must be 1 or 2.');
-};
-
-// https://www.microsoft.com/typography/OTSPEC/GSUB.htm#MS
-subtableParsers[2] = function parseLookup2() {
-    var substFormat = this.parseUShort();
-    check.argument(substFormat === 1, 'GSUB Multiple Substitution Subtable identifier-format must be 1');
-    return {
-        substFormat: substFormat,
-        coverage: this.parsePointer(Parser.coverage),
-        sequences: this.parseListOfLists()
-    };
-};
-
-// https://www.microsoft.com/typography/OTSPEC/GSUB.htm#AS
-subtableParsers[3] = function parseLookup3() {
-    var substFormat = this.parseUShort();
-    check.argument(substFormat === 1, 'GSUB Alternate Substitution Subtable identifier-format must be 1');
-    return {
-        substFormat: substFormat,
-        coverage: this.parsePointer(Parser.coverage),
-        alternateSets: this.parseListOfLists()
-    };
-};
-
-// https://www.microsoft.com/typography/OTSPEC/GSUB.htm#LS
-subtableParsers[4] = function parseLookup4() {
-    var substFormat = this.parseUShort();
-    check.argument(substFormat === 1, 'GSUB ligature table identifier-format must be 1');
-    return {
-        substFormat: substFormat,
-        coverage: this.parsePointer(Parser.coverage),
-        ligatureSets: this.parseListOfLists(function() {
-            return {
-                ligGlyph: this.parseUShort(),
-                components: this.parseUShortList(this.parseUShort() - 1)
-            };
-        })
-    };
-};
-
-var lookupRecordDesc = {
-    sequenceIndex: Parser.uShort,
-    lookupListIndex: Parser.uShort
-};
-
-// https://www.microsoft.com/typography/OTSPEC/GSUB.htm#CSF
-subtableParsers[5] = function parseLookup5() {
-    var start = this.offset + this.relativeOffset;
-    var substFormat = this.parseUShort();
-
-    if (substFormat === 1) {
-        return {
-            substFormat: substFormat,
-            coverage: this.parsePointer(Parser.coverage),
-            ruleSets: this.parseListOfLists(function() {
-                var glyphCount = this.parseUShort();
-                var substCount = this.parseUShort();
-                return {
-                    input: this.parseUShortList(glyphCount - 1),
-                    lookupRecords: this.parseRecordList(substCount, lookupRecordDesc)
-                };
-            })
-        };
-    } else if (substFormat === 2) {
-        return {
-            substFormat: substFormat,
-            coverage: this.parsePointer(Parser.coverage),
-            classDef: this.parsePointer(Parser.classDef),
-            classSets: this.parseListOfLists(function() {
-                var glyphCount = this.parseUShort();
-                var substCount = this.parseUShort();
-                return {
-                    classes: this.parseUShortList(glyphCount - 1),
-                    lookupRecords: this.parseRecordList(substCount, lookupRecordDesc)
-                };
-            })
-        };
-    } else if (substFormat === 3) {
-        var glyphCount = this.parseUShort();
-        var substCount = this.parseUShort();
-        return {
-            substFormat: substFormat,
-            coverages: this.parseList(glyphCount, Parser.pointer(Parser.coverage)),
-            lookupRecords: this.parseRecordList(substCount, lookupRecordDesc)
-        };
-    }
-    check.assert(false, '0x' + start.toString(16) + ': lookup type 5 format must be 1, 2 or 3.');
-};
-
-// https://www.microsoft.com/typography/OTSPEC/GSUB.htm#CC
-subtableParsers[6] = function parseLookup6() {
-    // TODO add automated tests for lookup 6 : no examples in the MS doc.
-    var start = this.offset + this.relativeOffset;
-    var substFormat = this.parseUShort();
-    if (substFormat === 1) {
-        return {
-            substFormat: 1,
-            coverage: this.parsePointer(Parser.coverage),
-            chainRuleSets: this.parseListOfLists(function() {
-                return {
-                    backtrack: this.parseUShortList(),
-                    input: this.parseUShortList(this.parseShort() - 1),
-                    lookahead: this.parseUShortList(),
-                    lookupRecords: this.parseRecordList(lookupRecordDesc)
-                };
-            })
-        };
-    } else if (substFormat === 2) {
-        return {
-            substFormat: 2,
-            coverage: this.parsePointer(Parser.coverage),
-            backtrackClassDef: this.parsePointer(Parser.classDef),
-            inputClassDef: this.parsePointer(Parser.classDef),
-            lookaheadClassDef: this.parsePointer(Parser.classDef),
-            chainClassSet: this.parseListOfLists(function() {
-                return {
-                    backtrack: this.parseUShortList(),
-                    input: this.parseUShortList(this.parseShort() - 1),
-                    lookahead: this.parseUShortList(),
-                    lookupRecords: this.parseRecordList(lookupRecordDesc)
-                };
-            })
-        };
-    } else if (substFormat === 3) {
-        return {
-            substFormat: 3,
-            backtrackCoverage: this.parseList(Parser.pointer(Parser.coverage)),
-            inputCoverage: this.parseList(Parser.pointer(Parser.coverage)),
-            lookaheadCoverage: this.parseList(Parser.pointer(Parser.coverage)),
-            lookupRecords: this.parseRecordList(lookupRecordDesc)
-        };
-    }
-    check.assert(false, '0x' + start.toString(16) + ': lookup type 6 format must be 1, 2 or 3.');
-};
-
-// https://www.microsoft.com/typography/OTSPEC/GSUB.htm#ES
-subtableParsers[7] = function parseLookup7() {
-    // Extension Substitution subtable
-    var substFormat = this.parseUShort();
-    check.argument(substFormat === 1, 'GSUB Extension Substitution subtable identifier-format must be 1');
-    var extensionLookupType = this.parseUShort();
-    var extensionParser = new Parser(this.data, this.offset + this.parseULong());
-    return {
-        substFormat: 1,
-        lookupType: extensionLookupType,
-        extension: subtableParsers[extensionLookupType].call(extensionParser)
-    };
-};
-
-// https://www.microsoft.com/typography/OTSPEC/GSUB.htm#RCCS
-subtableParsers[8] = function parseLookup8() {
-    var substFormat = this.parseUShort();
-    check.argument(substFormat === 1, 'GSUB Reverse Chaining Contextual Single Substitution Subtable identifier-format must be 1');
-    return {
-        substFormat: substFormat,
-        coverage: this.parsePointer(Parser.coverage),
-        backtrackCoverage: this.parseList(Parser.pointer(Parser.coverage)),
-        lookaheadCoverage: this.parseList(Parser.pointer(Parser.coverage)),
-        substitutes: this.parseUShortList()
-    };
-};
-
-// https://www.microsoft.com/typography/OTSPEC/gsub.htm
-function parseGsubTable(data, start) {
-    start = start || 0;
-    var p = new Parser(data, start);
-    var tableVersion = p.parseVersion();
-    check.argument(tableVersion === 1, 'Unsupported GSUB table version.');
-    return {
-        version: tableVersion,
-        scripts: p.parseScriptList(),
-        features: p.parseFeatureList(),
-        lookups: p.parseLookupList(subtableParsers)
-    };
-}
-
-exports.parse = parseGsubTable;
-
-},{"../check":2,"../parse":9}],18:[function(require,module,exports){
 // The `head` table contains global information about the font.
 // https://www.microsoft.com/typography/OTSPEC/head.htm
 
@@ -4612,14 +4117,6 @@ function parseHeadTable(data, start) {
 }
 
 function makeHeadTable(options) {
-    // Apple Mac timestamp epoch is 01/01/1904 not 01/01/1970
-    var timestamp = Math.round(new Date().getTime() / 1000) + 2082844800;
-    var createdTimestamp = timestamp;
-
-    if (options.createdTimestamp) {
-        createdTimestamp = options.createdTimestamp + 2082844800;
-    }
-
     return new table.Table('head', [
         {name: 'version', type: 'FIXED', value: 0x00010000},
         {name: 'fontRevision', type: 'FIXED', value: 0x00010000},
@@ -4627,8 +4124,8 @@ function makeHeadTable(options) {
         {name: 'magicNumber', type: 'ULONG', value: 0x5F0F3CF5},
         {name: 'flags', type: 'USHORT', value: 0},
         {name: 'unitsPerEm', type: 'USHORT', value: 1000},
-        {name: 'created', type: 'LONGDATETIME', value: createdTimestamp},
-        {name: 'modified', type: 'LONGDATETIME', value: timestamp},
+        {name: 'created', type: 'LONGDATETIME', value: 0},
+        {name: 'modified', type: 'LONGDATETIME', value: 0},
         {name: 'xMin', type: 'SHORT', value: 0},
         {name: 'yMin', type: 'SHORT', value: 0},
         {name: 'xMax', type: 'SHORT', value: 0},
@@ -4644,7 +4141,7 @@ function makeHeadTable(options) {
 exports.parse = parseHeadTable;
 exports.make = makeHeadTable;
 
-},{"../check":2,"../parse":9,"../table":11}],19:[function(require,module,exports){
+},{"../check":2,"../parse":9,"../table":11}],18:[function(require,module,exports){
 // The `hhea` table contains information for horizontal layout.
 // https://www.microsoft.com/typography/OTSPEC/hhea.htm
 
@@ -4699,7 +4196,7 @@ function makeHheaTable(options) {
 exports.parse = parseHheaTable;
 exports.make = makeHheaTable;
 
-},{"../parse":9,"../table":11}],20:[function(require,module,exports){
+},{"../parse":9,"../table":11}],19:[function(require,module,exports){
 // The `hmtx` table contains the horizontal metrics for all glyphs.
 // https://www.microsoft.com/typography/OTSPEC/hmtx.htm
 
@@ -4743,7 +4240,7 @@ function makeHmtxTable(glyphs) {
 exports.parse = parseHmtxTable;
 exports.make = makeHmtxTable;
 
-},{"../parse":9,"../table":11}],21:[function(require,module,exports){
+},{"../parse":9,"../table":11}],20:[function(require,module,exports){
 // The `kern` table contains kerning pairs.
 // Note that some fonts use the GPOS OpenType layout table to specify kerning.
 // https://www.microsoft.com/typography/OTSPEC/kern.htm
@@ -4780,7 +4277,7 @@ function parseKernTable(data, start) {
 
 exports.parse = parseKernTable;
 
-},{"../check":2,"../parse":9}],22:[function(require,module,exports){
+},{"../check":2,"../parse":9}],21:[function(require,module,exports){
 // The `loca` table stores the offsets to the locations of the glyphs in the font.
 // https://www.microsoft.com/typography/OTSPEC/loca.htm
 
@@ -4815,7 +4312,7 @@ function parseLocaTable(data, start, numGlyphs, shortVersion) {
 
 exports.parse = parseLocaTable;
 
-},{"../parse":9}],23:[function(require,module,exports){
+},{"../parse":9}],22:[function(require,module,exports){
 // The `ltag` table stores IETF BCP-47 language tags. It allows supporting
 // languages for which TrueType does not assign a numeric code.
 // https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6ltag.html
@@ -4878,7 +4375,7 @@ function parseLtagTable(data, start) {
 exports.make = makeLtagTable;
 exports.parse = parseLtagTable;
 
-},{"../check":2,"../parse":9,"../table":11}],24:[function(require,module,exports){
+},{"../check":2,"../parse":9,"../table":11}],23:[function(require,module,exports){
 // The `maxp` table establishes the memory requirements for the font.
 // We need it just to get the number of glyphs in the font.
 // https://www.microsoft.com/typography/OTSPEC/maxp.htm
@@ -4923,7 +4420,7 @@ function makeMaxpTable(numGlyphs) {
 exports.parse = parseMaxpTable;
 exports.make = makeMaxpTable;
 
-},{"../parse":9,"../table":11}],25:[function(require,module,exports){
+},{"../parse":9,"../table":11}],24:[function(require,module,exports){
 // The `name` naming table.
 // https://www.microsoft.com/typography/OTSPEC/name.htm
 
@@ -5755,7 +5252,7 @@ function makeNameTable(names, ltag) {
 exports.parse = parseNameTable;
 exports.make = makeNameTable;
 
-},{"../parse":9,"../table":11,"../types":29}],26:[function(require,module,exports){
+},{"../parse":9,"../table":11,"../types":28}],25:[function(require,module,exports){
 // The `OS/2` table contains metrics required in OpenType fonts.
 // https://www.microsoft.com/typography/OTSPEC/os2.htm
 
@@ -6011,7 +5508,7 @@ exports.getUnicodeRange = getUnicodeRange;
 exports.parse = parseOS2Table;
 exports.make = makeOS2Table;
 
-},{"../parse":9,"../table":11}],27:[function(require,module,exports){
+},{"../parse":9,"../table":11}],26:[function(require,module,exports){
 // The `post` table stores additional PostScript information, such as glyph names.
 // https://www.microsoft.com/typography/OTSPEC/post.htm
 
@@ -6084,7 +5581,7 @@ function makePostTable() {
 exports.parse = parsePostTable;
 exports.make = makePostTable;
 
-},{"../encoding":4,"../parse":9,"../table":11}],28:[function(require,module,exports){
+},{"../encoding":4,"../parse":9,"../table":11}],27:[function(require,module,exports){
 // The `sfnt` wrapper provides organization for the tables in the font.
 // It is the top-level data structure in a font.
 // https://www.microsoft.com/typography/OTSPEC/otff.htm
@@ -6235,15 +5732,12 @@ function fontToSfntTable(font) {
         var glyph = font.glyphs.get(i);
         var unicode = glyph.unicode | 0;
 
-        if (isNaN(glyph.advanceWidth)) {
-            throw new Error('Glyph ' + glyph.name + ' (' + i + '): advanceWidth is not a number.');
+        if (typeof glyph.advanceWidth === 'undefined') {
+            throw new Error('Glyph ' + glyph.name + ' (' + i + '): advanceWidth is required.');
         }
 
-        if (firstCharIndex > unicode || firstCharIndex === undefined) {
-            // ignore .notdef char
-            if (unicode > 0) {
-                firstCharIndex = unicode;
-            }
+        if (firstCharIndex > unicode || firstCharIndex === null) {
+            firstCharIndex = unicode;
         }
 
         if (lastCharIndex < unicode) {
@@ -6295,8 +5789,7 @@ function fontToSfntTable(font) {
         yMin: globals.yMin,
         xMax: globals.xMax,
         yMax: globals.yMax,
-        lowestRecPPEM: 3,
-        createdTimestamp: font.createdTimestamp
+        lowestRecPPEM: 3
     });
 
     var hheaTable = hhea.make({
@@ -6313,15 +5806,15 @@ function fontToSfntTable(font) {
 
     var os2Table = os2.make({
         xAvgCharWidth: Math.round(globals.advanceWidthAvg),
-        usWeightClass: font.tables.os2.usWeightClass,
-        usWidthClass: font.tables.os2.usWidthClass,
+        usWeightClass: 500, // Medium FIXME Make this configurable
+        usWidthClass: 5, // Medium (normal) FIXME Make this configurable
         usFirstCharIndex: firstCharIndex,
         usLastCharIndex: lastCharIndex,
         ulUnicodeRange1: ulUnicodeRange1,
         ulUnicodeRange2: ulUnicodeRange2,
         ulUnicodeRange3: ulUnicodeRange3,
         ulUnicodeRange4: ulUnicodeRange4,
-        fsSelection: font.tables.os2.fsSelection, // REGULAR
+        fsSelection: 64, // REGULAR
         // See http://typophile.com/node/13081 for more info on vertical metrics.
         // We get metrics for typical characters (such as "x" for xHeight).
         // We provide some fallback characters if characters are unavailable: their
@@ -6417,7 +5910,7 @@ exports.computeCheckSum = computeCheckSum;
 exports.make = makeSfntTable;
 exports.fontToTable = fontToSfntTable;
 
-},{"../check":2,"../table":11,"./cff":12,"./cmap":13,"./head":18,"./hhea":19,"./hmtx":20,"./ltag":23,"./maxp":24,"./name":25,"./os2":26,"./post":27}],29:[function(require,module,exports){
+},{"../check":2,"../table":11,"./cff":12,"./cmap":13,"./head":17,"./hhea":18,"./hmtx":19,"./ltag":22,"./maxp":23,"./name":24,"./os2":25,"./post":26}],28:[function(require,module,exports){
 // Data types used in the OpenType font file.
 // All OpenType fonts use Motorola-style byte ordering (Big Endian)
 
@@ -6527,9 +6020,8 @@ encode.UFWORD = encode.USHORT;
 sizeOf.UFWORD = sizeOf.USHORT;
 
 // FIXME Implement LONGDATETIME
-// Convert a 32-bit Apple Mac timestamp integer to a list of 8 bytes, 64-bit timestamp.
-encode.LONGDATETIME = function(v) {
-    return [0, 0, 0, 0, (v >> 24) & 0xFF, (v >> 16) & 0xFF, (v >> 8) & 0xFF, v & 0xFF];
+encode.LONGDATETIME = function() {
+    return [0, 0, 0, 0, 0, 0, 0, 0];
 };
 
 sizeOf.LONGDATETIME = constant(8);
@@ -6835,16 +6327,18 @@ sizeOf.MACSTRING = function(str, encoding) {
 encode.INDEX = function(l) {
     var i;
     //var offset, offsets, offsetEncoder, encodedOffsets, encodedOffset, data,
-    //    i, v;
+    //    dataSize, i, v;
     // Because we have to know which data type to use to encode the offsets,
     // we have to go through the values twice: once to encode the data and
     // calculate the offets, then again to encode the offsets using the fitting data type.
     var offset = 1; // First offset is always 1.
     var offsets = [offset];
     var data = [];
+    var dataSize = 0;
     for (i = 0; i < l.length; i += 1) {
         var v = encode.OBJECT(l[i]);
         Array.prototype.push.apply(data, v);
+        dataSize += v.length;
         offset += v.length;
         offsets.push(offset);
     }
@@ -6854,7 +6348,7 @@ encode.INDEX = function(l) {
     }
 
     var encodedOffsets = [];
-    var offSize = (1 + Math.floor(Math.log(offset) / Math.log(2)) / 8) | 0;
+    var offSize = (1 + Math.floor(Math.log(dataSize) / Math.log(2)) / 8) | 0;
     var offsetEncoder = [undefined, encode.BYTE, encode.USHORT, encode.UINT24, encode.ULONG][offSize];
     for (i = 0; i < offsets.length; i += 1) {
         var encodedOffset = offsetEncoder(offsets[i]);
@@ -7061,7 +6555,7 @@ exports.decode = decode;
 exports.encode = encode;
 exports.sizeOf = sizeOf;
 
-},{"./check":2}],30:[function(require,module,exports){
+},{"./check":2}],29:[function(require,module,exports){
 'use strict';
 
 exports.isBrowser = function() {
